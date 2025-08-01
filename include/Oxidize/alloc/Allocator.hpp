@@ -10,10 +10,7 @@
 
 namespace ox::alloc {
 
-enum class AllocError {
-    BadAlloc,
-    ZeroLen
-};
+enum class AllocError { BadAlloc, ZeroLen };
 
 template <typename Self>
 concept Allocator = requires(Self self, Layout layout, ptr::NonNull<void> ptr) {
@@ -42,8 +39,8 @@ template <Allocator Self> struct Alloc {
         if (old_layout.size() == 0)
             return Ok(move(new_mem));
 
-        T* new_ptr = new_mem.get();
-        T* old_raw = old_ptr.get();
+        T *new_ptr = new_mem.get();
+        T *old_raw = old_ptr.get();
 
         if constexpr (trait::TrivialCopy<T>) {
             std::memcpy(new_ptr, old_raw, old_layout.size());
@@ -66,8 +63,8 @@ template <Allocator Self> struct Alloc {
         ox::ptr::NonNull<T> old_ptr, Layout old_layout, Layout new_layout) {
         mut new_mem = TRY(m_impl.allocate(new_layout)).template cast<T>();
 
-        T* new_ptr = new_mem.get();
-        T* old_raw = old_ptr.get();
+        T *new_ptr = new_mem.get();
+        T *old_raw = old_ptr.get();
 
         if constexpr (std::is_trivially_copyable_v<T>) {
             std::memcpy(new_ptr, old_raw, new_layout.size());
@@ -97,9 +94,9 @@ struct Global {
 
     Result<ptr::NonNull<void>, AllocError> allocate(Layout layout) {
         try {
-            void* data = ::operator new(layout.size(), std::align_val_t(layout.align()));
+            void *data = ::operator new(layout.size(), std::align_val_t(layout.align()));
             return Ok(ox::ptr::NonNull<void>(data));
-        } catch (std::bad_alloc&) {
+        } catch (std::bad_alloc &) {
             return Err(AllocError::BadAlloc);
         }
     }
@@ -112,20 +109,16 @@ static_assert(Allocator<Global>);
 
 }; // namespace ox::alloc
 
-template <> struct std::formatter<ox::alloc::AllocError> {
-    constexpr auto parse(std::format_parse_context& ctx) { return ctx.begin(); }
+template <> struct fmt::formatter<ox::alloc::AllocError> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
 
-    auto format(const ox::alloc::AllocError& v, format_context& ctx) const {
+    auto format(const ox::alloc::AllocError &v, format_context &ctx) const {
         switch (v) {
-        case ox::alloc::AllocError::BadAlloc: {
-            return std::format_to(ctx.out(), "Bad Allocator");
-            break;
+        case ox::alloc::AllocError::BadAlloc:
+            return fmt::format_to(ctx.out(), "Bad Allocator");
+        case ox::alloc::AllocError::ZeroLen:
+            return fmt::format_to(ctx.out(), "Zero Length");
         }
-        case ox::alloc::AllocError::ZeroLen: {
-            return std::format_to(ctx.out(), "Zero Length");
-            break;
-        }
-        }
-        return std::format_to(ctx.out(), "Unknown Allocation Error");
+        return fmt::format_to(ctx.out(), "Unknown Allocation Error");
     }
 };

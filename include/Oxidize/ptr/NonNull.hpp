@@ -45,10 +45,10 @@ template <typename T> struct NonNull {
 
 } // namespace ox::ptr
 
-template <typename T> struct std::formatter<ox::ptr::NonNull<T>> {
-    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+template <typename T> struct fmt::formatter<ox::ptr::NonNull<T>> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
 
     auto format(const ox::ptr::NonNull<T> &v, format_context &ctx) const {
-        return std::format_to(ctx.out(), "NonNull {{ ptr: {:#x} }}", (ox::u64) v.m_ptr);
+        return fmt::format_to(ctx.out(), "NonNull {{ ptr: {:#x} }}", (ox::u64) v.m_ptr);
     }
 };

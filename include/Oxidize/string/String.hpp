@@ -81,9 +81,9 @@ struct String {
 
 } // namespace ox
 
-template <> struct std::formatter<ox::String> : std::formatter<std::string_view> {
+template <> struct fmt::formatter<ox::String> : fmt::formatter<std::string_view> {
     template <typename FormatContext> auto format(const ox::String &s, FormatContext &ctx) const {
-        return std::formatter<std::string_view>::format(
+        return fmt::formatter<std::string_view>::format(
             std::string_view(s.as_cstring().data(), s.len()), ctx);
     }
 };

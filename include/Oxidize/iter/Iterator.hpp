@@ -124,18 +124,18 @@ template <typename T> using IterMut = RawIterator<RawIterMut<T>>;
 
 } // namespace ox::iter
 
-template <ox::iter::Iterator Self> struct std::formatter<ox::iter::RawIterator<Self>> {
-    constexpr auto parse(std::format_parse_context& ctx) { return ctx.begin(); }
+template <ox::iter::Iterator Self> struct fmt::formatter<ox::iter::RawIterator<Self>> {
+    constexpr auto parse(fmt::format_parse_context& ctx) { return ctx.begin(); }
 
     auto format(const ox::iter::RawIterator<Self>& iter, format_context& ctx) const {
         std::string res = "";
         for (mut i = 0; i < iter.len(); i++) {
             if (i == 0) {
-                res = std::format("{}", iter.m_ptr[i]);
+                res = fmt::format("{}", iter.m_ptr[i]);
             } else {
-                res = std::format("{}, {}", res, iter.m_ptr[i]);
+                res = fmt::format("{}, {}", res, iter.m_ptr[i]);
             }
         }
-        return std::format_to(ctx.out(), "Iterator([{}])", res);
+        return fmt::format_to(ctx.out(), "Iterator([{}])", res);
     }
 };

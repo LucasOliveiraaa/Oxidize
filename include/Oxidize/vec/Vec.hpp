@@ -412,18 +412,18 @@ template <typename T> Vec<T> vec() {
 
 } // namespace ox
 
-template <typename T> struct std::formatter<ox::Vec<T>> {
-    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+template <typename T> struct fmt::formatter<ox::Vec<T>> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
 
     auto format(const ox::Vec<T> &v, format_context &ctx) const {
         std::string res = "";
         for (mut i = 0; i < v.len(); i++) {
             if (i == 0) {
-                res = std::format("{}", v[i]);
+                res = fmt::format("{}", v[i]);
             } else {
-                res = std::format("{}, {}", res, v[i]);
+                res = fmt::format("{}, {}", res, v[i]);
             }
         }
-        return std::format_to(ctx.out(), "[{}]", res);
+        return fmt::format_to(ctx.out(), "[{}]", res);
     }
 };

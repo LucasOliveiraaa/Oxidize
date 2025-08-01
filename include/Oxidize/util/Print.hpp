@@ -1,24 +1,25 @@
 #pragma once
 #include "../string/String.hpp"
-#include <format>
-#include <print>
+#include <fmt/format.h>
+#include <iostream>
+#include <utility>
 
 namespace ox {
 
-template <typename... Args> void print(std::format_string<Args...> message, Args&&... args) {
-    std::print(message, std::forward<Args>(args)...);
+template <typename... Args> String format(fmt::format_string<Args...> message, Args&&... args) {
+    return fmt::format(message, std::forward<Args>(args)...);
 }
 
-template <typename... Args> void println(std::format_string<Args...> message, Args&&... args) {
-    std::println(message, std::forward<Args>(args)...);
+template <typename... Args> void print(fmt::format_string<Args...> message, Args&&... args) {
+    std::cout << fmt::format(message, std::forward<Args>(args)...);
+}
+
+template <typename... Args> void println(fmt::format_string<Args...> message, Args&&... args) {
+    std::cout << fmt::format(message, std::forward<Args>(args)...) << std::endl;
 }
 
 inline void println() {
-    std::println("");
-}
-
-template <typename... Args> String format(std::format_string<Args...> message, Args&&... args) {
-    return std::format(message, std::forward<Args>(args)...);
+    println("");
 }
 
 } // namespace ox

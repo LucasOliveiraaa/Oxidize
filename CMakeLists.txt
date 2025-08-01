@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(Oxidize CXX)
 
 # === Build Configuration ===
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -26,6 +26,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(benchmark)
 
+# --- fmt ---
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG        10.1.1  # or latest stable version
+)
+FetchContent_MakeAvailable(fmt)
+
 # === Include Project Headers ===
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
@@ -44,9 +52,8 @@ target_link_libraries(oxidize_tests
   PRIVATE
     Catch2::Catch2WithMain
     benchmark::benchmark
-    backtrace
+    fmt::fmt
 )
-target_compile_definitions(oxidize_tests PRIVATE BOOST_STACKTRACE_USE_BACKTRACE)
 include(Catch)
 catch_discover_tests(oxidize_tests)
 
@@ -55,4 +62,4 @@ add_executable(oxidize_benchmarks
   benchmarks/oxidize_bench.cpp
   # add more benchmark files here
 )
-target_link_libraries(oxidize_benchmarks PRIVATE benchmark::benchmark)
+target_link_libraries(oxidize_benchmarks PRIVATE benchmark::benchmark fmt::fmt)

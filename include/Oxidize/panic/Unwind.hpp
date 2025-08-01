@@ -2,10 +2,8 @@
 #include "Oxidize/core/Types.hpp"
 #include <exception>
 #include <iostream>
-#include <boost/stacktrace.hpp>
-#include <print>
+#include <fmt/format.h>
 #include <source_location>
-#include <sstream>
 
 namespace ox {
 
@@ -23,13 +21,12 @@ struct PanicInfo {
 using PanicHookFn = void (*)(const PanicInfo &);
 
 static void default_hook(const PanicInfo &info) {
-    std::println(
-        "\033[1;31mPanic at {}:{}:{} in {}:\033[0m", info.file, info.line, info.column, info.func);
-    std::println("{}", info.message);
+    std::cout << fmt::format("\033[1;31mPanic at {}:{}:{} in {}:\033[0m", info.file, info.line, info.column, info.func) << std::endl;
+    std::cout << info.message << std::endl;
     if (std::getenv("BACKTRACE")) {
-        std::println("stack backtrace:\n{}", info.backtrace);
+        std::cout << "note: nacktraces are unsupported in the current version of Oxidize" << std::endl;
     } else {
-        std::println("note: run with `BACKTRACE=1` environment variable to display a backtrace");
+        std::cout << "note: nacktraces are unsupported in the current version of Oxidize" << std::endl;
     }
 }
 
@@ -96,11 +93,8 @@ inline void Panic::panic_now(PanicInfo info) {
 
 inline void panic_helper(
     RawString message, const std::source_location &loc = std::source_location::current()) {
-    std::ostringstream oss;
-    oss << boost::stacktrace::stacktrace();
-
     PanicInfo info = {.message = message,
-        .backtrace = oss.str(),
+        .backtrace = "",
         .file = loc.file_name(),
         .func = loc.function_name(),
         .line = loc.line(),
@@ -111,7 +105,7 @@ inline void panic_helper(
 
 } // namespace panic
 
-#define panic(text, ...) ox::panic::panic_helper(std::format("" text, ##__VA_ARGS__))
+#define panic(text, ...) ox::panic::panic_helper(fmt::format("" text, ##__VA_ARGS__))
 
 } // namespace ox
 

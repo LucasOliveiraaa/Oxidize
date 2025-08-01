@@ -631,20 +631,20 @@ template <typename T, typename E> struct [[nodiscard]] Result {
 
 } // namespace ox
 
-template <typename T> struct std::formatter<ox::Option<T>> {
-    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+template <typename T> struct fmt::formatter<ox::Option<T>> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
 
     auto format(const ox::Option<T> &v, format_context &ctx) const {
-        return v.match([&](const T &ok) { return std::format_to(ctx.out(), "Ok({})", ok); },
-            [&]() { return std::format_to(ctx.out(), "None"); });
+        return v.match([&](const T &ok) { return fmt::format_to(ctx.out(), "Ok({})", ok); },
+            [&]() { return fmt::format_to(ctx.out(), "None"); });
     }
 };
 
-template <typename T, typename E> struct std::formatter<ox::Result<T, E>> {
-    constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+template <typename T, typename E> struct fmt::formatter<ox::Result<T, E>> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
 
     auto format(const ox::Result<T, E> &v, format_context &ctx) const {
-        return v.match([&](const T &ok) { return std::format_to(ctx.out(), "Ok({})", ok); },
-            [&](const E &err) { return std::format_to(ctx.out(), "Err({})", err); });
+        return v.match([&](const T &ok) { return fmt::format_to(ctx.out(), "Ok({})", ok); },
+            [&](const E &err) { return fmt::format_to(ctx.out(), "Err({})", err); });
     }
 };

@@ -1,5 +1,5 @@
 #pragma once
-#include <format>
+#include <fmt/format.h>
 #include <limits>
 #include <string>
 #include <type_traits>
@@ -56,10 +56,10 @@ struct Void {
 
 }
 
-template <> struct std::formatter<ox::Void> {
-    constexpr auto parse(std::format_parse_context& ctx) { return ctx.begin(); }
+template <> struct fmt::formatter<ox::Void> {
+    constexpr auto parse(fmt::format_parse_context& ctx) { return ctx.begin(); }
 
     auto format(const ox::Void& v, format_context& ctx) const {
-        return std::format_to(ctx.out(), "()");
+        return fmt::format_to(ctx.out(), "()");
     }
 };

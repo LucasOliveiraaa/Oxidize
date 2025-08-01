@@ -17,11 +17,8 @@ jobs:
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y build-essential cmake
 
-    - name: Configure CMake
-      run: cmake -S . -B build/release
-
     - name: Build
-      run: cmake --build build/release
+      run: tools/build.sh release
 
     - name: Run tests
-      run: ctest --test-dir build/release --output-on-failure
+      run: tools/run.sh release tests
