@@ -128,7 +128,7 @@ template <typename T, alloc::Allocator A = alloc::Global> struct Arc {
     }
 
     Result<T, Arc<T, A>> try_unwrap() && {
-        if (ptr->strong.compare_exchange_strong(
+        if (!ptr->strong.compare_exchange_strong(
                 1, 0, std::memory_order_relaxed, std::memory_order_relaxed)) {
             return Err(move(*this));
         }
