@@ -20,6 +20,9 @@ using u32 = unsigned int;
 using u16 = unsigned short;
 using u8 = unsigned char;
 
+using f64 = double;
+using f32 = float;
+
 template <typename T> struct Default {
     template <typename U = T, std::enable_if_t<std::is_default_constructible_v<U>, int> = 0>
     static U default_() noexcept(std::is_nothrow_default_constructible_v<U>) {
