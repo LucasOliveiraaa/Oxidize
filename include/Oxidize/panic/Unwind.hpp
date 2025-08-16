@@ -24,9 +24,9 @@ static void default_hook(const PanicInfo &info) {
     std::cout << fmt::format("\033[1;31mPanic at {}:{}:{} in {}:\033[0m", info.file, info.line, info.column, info.func) << std::endl;
     std::cout << info.message << std::endl;
     if (std::getenv("BACKTRACE")) {
-        std::cout << "note: nacktraces are unsupported in the current version of Oxidize" << std::endl;
+        std::cout << "note: backtraces are unsupported in the current version of Oxidize" << std::endl;
     } else {
-        std::cout << "note: nacktraces are unsupported in the current version of Oxidize" << std::endl;
+        std::cout << "note: backtraces are unsupported in the current version of Oxidize" << std::endl;
     }
 }
 
