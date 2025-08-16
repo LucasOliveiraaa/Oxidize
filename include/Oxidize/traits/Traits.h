@@ -1,6 +1,5 @@
 #pragma once
 #include <concepts>
-#include <type_traits>
 
 namespace ox::trait {
 
@@ -28,5 +27,13 @@ template <typename T>
 concept Clone = requires(T f) {
     { f.clone() } -> std::convertible_to<T>;
 };
+
+template <typename T> T forced_clone(const T &v) {
+    if constexpr (Copy<T>) {
+        return v;
+    } else if constexpr (Clone<T>) {
+        return v.clone();
+    }
+}
 
 } // namespace ox::trait
