@@ -46,6 +46,9 @@ add_executable(oxidize_tests
   tests/result.cpp
   tests/tuple.cpp
   tests/vec.cpp
+  tests/format.cpp
+  tests/mutex.cpp
+  tests/rwlock.cpp
   # add more test files here
 )
 target_link_libraries(oxidize_tests
