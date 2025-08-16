@@ -77,7 +77,14 @@ struct String {
     RawString as_cstring() const {
         return RawString(reinterpret_cast<const char *>(vec.m_ptr.get()), len());
     }
+
+    friend std::ostream& operator<<(std::ostream& os, const String& s);
 };
+
+inline std::ostream& operator<<(std::ostream& os, const String& s) {
+    os << s.as_cstring();
+    return os;
+}
 
 } // namespace ox
 
