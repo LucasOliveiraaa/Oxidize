@@ -75,7 +75,7 @@ struct String {
     String clone() const { return String(vec.as_slice()); }
 
     RawString as_cstring() const {
-        return RawString(reinterpret_cast<const char *>(vec.m_ptr.get()), len());
+        return RawString(reinterpret_cast<const char *>(vec.as_ptr()), len());
     }
 
     friend std::ostream& operator<<(std::ostream& os, const String& s);

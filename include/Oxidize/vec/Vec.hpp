@@ -10,38 +10,26 @@
 #include "../slice/Slice.hpp"
 #include "Oxidize/ptr/NonNull.hpp"
 #include "Oxidize/traits/Traits.h"
+#include "Oxidize/vec/RawVec.hpp"
 #include <type_traits>
 
 namespace ox {
 
 template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
-    ptr::NonNull<T> m_ptr;
+    RawVec<T, A> m_buffer;
     usize m_len;
-    usize m_cap;
-
-    alloc::Alloc<A> m_alloc;
 
   public:
-    Vec(ptr::NonNull<T> ptr, usize cap, usize len, alloc::Alloc<A> alloc)
-        : m_ptr(ptr), m_cap(cap), m_len(len), m_alloc(std::move(alloc)) {}
+    Vec(ptr::NonNull<T> ptr, usize cap, usize len, alloc::Alloc<A> alloc) : m_buffer(ptr, cap, alloc), m_len(len) {}
+
     Vec(Vec &&other)
-        : m_ptr(std::exchange(other.m_ptr, ox::ptr::NonNull<T>::dangling())),
-          m_len(std::exchange(other.m_len, 0)), m_cap(std::exchange(other.m_cap, 0)),
-          m_alloc(std::exchange(other.m_alloc, alloc::Alloc<A>())) {}
+        : m_buffer(std::exchange(other.m_buffer, RawVec<T, A>())),
+          m_len(std::exchange(other.m_len, 0)) {}
 
     Vec &operator=(Vec &&other) noexcept {
         if (this != &other) {
-            if (m_ptr) {
-                if (m_cap > 0) {
-                    let layout = alloc::Layout::for_value<T>().repeat(m_cap);
-                    m_alloc.deallocate(m_ptr.template cast<void>(), layout);
-                }
-            }
-
-            m_ptr = std::exchange(other.m_ptr, ox::ptr::NonNull<T>::dangling());
+            m_buffer = std::exchange(other.m_buffer, RawVec<T, A>());
             m_len = std::exchange(other.m_len, 0);
-            m_cap = std::exchange(other.m_cap, 0);
-            m_alloc = std::exchange(other.m_alloc, alloc::Alloc<A>());
         }
         return *this;
     }
@@ -51,15 +39,11 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
 
     ~Vec() {
         for (usize i = 0; i < m_len; i++) {
-            m_ptr[i].~T();
-        }
-        if (m_cap > 0) {
-            let full = alloc::Layout::for_value<T>().repeat(m_cap);
-            m_alloc.deallocate(m_ptr.get(), full);
+            m_buffer[i].~T();
         }
     }
 
-    constexpr alloc::Alloc<A> &allocator() const noexcept { return m_alloc; }
+    constexpr alloc::Alloc<A> &allocator() const noexcept { return m_buffer.m_alloc; }
 
     bool operator==(const Vec<T, A> &other) const { return as_slice() == other.as_slice(); }
     bool operator!=(const Vec<T, A> &other) const { return as_slice() != other.as_slice(); }
@@ -116,35 +100,21 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         return move(vec);
     }
 
-    void reserve(usize additional) {
-        if (additional == 0)
-            return;
-
-        let new_cap = m_cap + additional;
-        let new_layout = alloc::Layout::for_value<T>().repeat(new_cap);
-        let old_layout = alloc::Layout::for_value<T>().repeat(m_cap);
-
-        let result = m_alloc.grow(m_ptr, old_layout, new_layout).expect("Vec::reserve");
-
-        m_ptr = result.template cast<T>();
-        m_cap = new_cap;
+    T *const as_ptr() const {
+        return m_buffer.as_ptr();
     }
 
+    void reserve(usize additional) { m_buffer.reserve(additional); }
+
     void shrink_to(usize min_capacity) {
-        if (min_capacity >= m_cap)
+        if (min_capacity >= capacity())
             return;
 
         if (min_capacity < m_len) {
             truncate(min_capacity);
         }
 
-        let old_layout = alloc::Layout::for_value<T>().repeat(m_cap);
-        let new_layout = alloc::Layout::for_value<T>().repeat(min_capacity);
-
-        let ptr = m_alloc.shrink(m_ptr, old_layout, new_layout).expect("Vec::shrink_to");
-
-        m_ptr = ptr.template cast<T>();
-        m_cap = min_capacity;
+        m_buffer.shrink_to(min_capacity);
     }
     void shrink_to_fit() { shrink_to(m_len); }
 
@@ -158,7 +128,7 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         } else {
             reserve(new_len - m_len);
             for (usize i = m_len; i < new_len; i++) {
-                new (m_ptr + i) T(value);
+                m_buffer.insert_at(i, value);
             }
             m_len = new_len;
         }
@@ -168,27 +138,26 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         if (i >= m_len)
             panic("index out of bounds: the len is {} but the index is {}", m_len, i);
 
-        mut el = move(m_ptr[i]);
-        m_ptr[i].~T();
+        mut el = move(m_buffer[i]);
+        m_buffer.destroy_at(i);
+
         for (usize j = i + 1; j < m_len; j++) {
-            mut temp = move(m_ptr[j]);
-            m_ptr[j].~T();
-            new (m_ptr + j - 1) T(temp);
+            m_buffer.move_assign(j, j - 1);
         }
+
         m_len--;
+
         return move(el);
     }
     T swap_remove(usize i) {
         if (i >= m_len)
             panic("index out of bounds: the len is {} but the index is {}", m_len, i);
 
-        mut el = move(m_ptr[i]);
-        m_ptr[i].~T();
+        mut el = move(m_buffer[i]);
+        m_buffer.destroy_at(i);
 
         if (i <= m_len - 1) {
-            mut temp = move(m_ptr[m_len - 1]);
-            m_ptr[m_len - 1].~T();
-            new (m_ptr + i) T(move(temp));
+            m_buffer.move_assign(m_len - 1, i);
         }
         m_len--;
 
@@ -200,7 +169,7 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
     void retain(F &&f) {
         usize i = 0;
         while (i < m_len) {
-            if (!f(m_ptr[i])) {
+            if (!f(m_buffer[i])) {
                 remove(i);
             } else {
                 i++;
@@ -212,7 +181,7 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
     void retain_mut(F &&f) {
         usize i = 0;
         while (i < m_len) {
-            if (!f(m_ptr[i])) {
+            if (!f(m_buffer[i])) {
                 remove(i);
             } else {
                 i++;
@@ -256,9 +225,9 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
     T reduce(F &&f) {
         if (m_len == 0)
             return Default<T>::default_();
-        mut acc = m_ptr[0];
+        mut acc = m_buffer[0];
         for (usize i = 1; i < m_len; i++) {
-            acc = CALL_FN(F, f, acc, m_ptr[i]);
+            acc = CALL_FN(F, f, acc, m_buffer[i]);
         }
         return move(acc);
     }
@@ -267,25 +236,29 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         if (len >= m_len)
             return;
         for (usize i = len; i < m_len; i++) {
-            m_ptr[i].~T();
+            m_buffer.destroy_at(i);
         }
         m_len = len;
     }
 
     void push(const T &value)
-        requires trait::Copy<T>
+        requires trait::Copy<T> || trait::Clone<T>
     {
-        if (m_len == m_cap) {
-            reserve(m_cap == 0 ? 8 : m_cap);
+        if (m_len == capacity()) {
+            reserve(capacity() == 0 ? 8 : capacity());
         }
-        new (m_ptr + m_len) T(value);
+        if constexpr (trait::Copy<T>) {
+            m_buffer.insert_at(m_len, value);
+        } else {
+            m_buffer.insert_at(m_len, value.clone());
+        }
         m_len++;
     }
     void push(T &&value) {
-        if (m_len == m_cap) {
-            reserve(m_cap == 0 ? 8 : m_cap);
+        if (m_len == capacity()) {
+            reserve(capacity() == 0 ? 8 : capacity());
         }
-        new (m_ptr + m_len) T(move(value));
+        m_buffer.insert_at(m_len, move(value));
         m_len++;
     }
 
@@ -293,8 +266,8 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         if (m_len == 0)
             return None;
         m_len--;
-        mut val = move(m_ptr[m_len]);
-        m_ptr[m_len].~T();
+        mut val = move(m_buffer[m_len]);
+        m_buffer[m_len].~T();
         return Some(move(val));
     }
     template <typename F>
@@ -303,7 +276,7 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         if (m_len == 0)
             return None;
 
-        let res = std::invoke(std::forward<F>(f), m_ptr[m_len - 1]);
+        let res = std::invoke(std::forward<F>(f), m_buffer[m_len - 1]);
         if (res)
             return pop();
 
@@ -315,8 +288,8 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         let other_len = other.len();
         for (usize i = 0; i < other.len(); i++) {
             mut temp = move(other[i]);
-            other[i].~T();
-            new (m_ptr + m_len + i) T(temp);
+            other.remove(i);
+            m_buffer.insert_at(m_len + 1, move(temp));
         }
         other.m_len = 0;
         m_len += other_len;
@@ -325,16 +298,16 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
     const T &operator[](usize i) const {
         if (i >= m_len)
             panic("index out of bounds: the len is {} but the index is {}", m_len, i);
-        return m_ptr[i];
+        return m_buffer[i];
     }
     T &operator[](usize i) {
         if (i >= m_len)
             panic("index out of bounds: the len is {} but the index is {}", m_len, i);
-        return m_ptr[i];
+        return m_buffer[i];
     }
 
     Vec<T> clone() const {
-        mut vec = Vec::with_capacity(m_cap);
+        mut vec = Vec::with_capacity(capacity());
         vec.extend_from_slice(as_slice());
         return vec;
     }
@@ -342,8 +315,8 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
     void extend_from_slice(const Slice<T> slice)
         requires(trait::Copy<T> || trait::Clone<T>)
     {
-        if (m_cap < m_len + slice.len()) {
-            reserve((m_len + slice.len()) - m_cap);
+        if (capacity() < m_len + slice.len()) {
+            reserve((m_len + slice.len()) - capacity());
         }
 
         for (let &el : slice) {
@@ -355,8 +328,8 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         }
     }
 
-    const Slice<T> as_slice() const { return Slice<T>(m_ptr, m_len); }
-    Slice<T> as_slice_mut() { return Slice<T>(m_ptr, m_len); }
+    const Slice<T> as_slice() const { return Slice<T>(m_buffer.m_ptr.get(), m_len); }
+    Slice<T> as_slice_mut() { return Slice<T>(m_buffer.m_ptr.get(), m_len); }
 
     const Slice<T> operator[](Range<usize> range) const {
         if (range.start == std::numeric_limits<usize>::max()) {
@@ -368,7 +341,7 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         if (range.end > m_len)
             panic("index out of bounds: the len is {} but the index is {}", m_len, range.end);
 
-        return Slice<T>(m_ptr.get() + range.start, range.end - range.start);
+        return Slice<T>(m_buffer.m_ptr.get() + range.start, range.end - range.start);
     }
     Slice<T> operator[](Range<usize> range) {
         if (range.start == std::numeric_limits<usize>::max()) {
@@ -380,14 +353,14 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         if (range.end > m_len)
             panic("index out of bounds: the len is {} but the index is {}", m_len, range.end);
 
-        return Slice<T>(m_ptr.get() + range.start, range.end - range.start);
+        return Slice<T>(m_buffer.m_ptr.get() + range.start, range.end - range.start);
     }
 
     usize len() const { return m_len; }
-    usize capacity() const { return m_cap; }
+    usize capacity() const { return m_buffer.m_cap; }
 
-    iter::Iter<T> iter() const { return iter::Iter<T>(m_ptr.get(), m_len); }
-    iter::IterMut<T> iter_mut() { return iter::IterMut<T>(m_ptr.get(), m_len); }
+    iter::Iter<T> iter() const { return iter::Iter<T>(m_buffer.m_ptr.get(), m_len); }
+    iter::IterMut<T> iter_mut() { return iter::IterMut<T>(m_buffer.m_ptr.get(), m_len); }
 };
 
 template <typename T> void vec_helper(Vec<T> &vec, const T &last) {
