@@ -287,10 +287,13 @@ template <typename T, alloc::Allocator A = ox::alloc::Global> struct Vec {
         reserve(other.len());
         let other_len = other.len();
         for (usize i = 0; i < other.len(); i++) {
-            mut temp = move(other[i]);
-            other.remove(i);
-            m_buffer.insert_at(m_len + 1, move(temp));
+            m_buffer.insert_at(m_len + i, move(other[i]));
         }
+        
+        for(usize i = 0; i < other.len(); i++) {
+            other.m_buffer.destroy_at(i);
+        }
+
         other.m_len = 0;
         m_len += other_len;
     }

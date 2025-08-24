@@ -2,6 +2,7 @@
 #include "Oxidize/alloc/Allocator.hpp"
 #include "Oxidize/alloc/Layout.hpp"
 #include "Oxidize/ptr/NonNull.hpp"
+#include "Oxidize/slice/Slice.hpp"
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -58,7 +59,9 @@ template <typename T, alloc::Allocator A = alloc::Global> struct RawVec {
     }
 
     usize capacity() const { return m_cap; }
-    T *const as_ptr() const { return m_ptr.as_ptr(); }
+    T *as_ptr() const { return m_ptr.as_ptr(); }
+
+    constexpr alloc::Alloc<A> &allocator() const noexcept { return m_alloc; }
 
     /// Grow the RawVec to contain at least `additional` more elements.
     void reserve(usize additional) {
@@ -86,7 +89,7 @@ template <typename T, alloc::Allocator A = alloc::Global> struct RawVec {
         let old_layout = alloc::Layout::for_value<T>().repeat(m_cap);
         let new_layout = alloc::Layout::for_value<T>().repeat(min_capacity);
 
-        let ptr = m_alloc.shrink(m_ptr, old_layout, new_layout).expect("Vec::shrink_to");
+        let ptr = m_alloc.shrink(m_ptr, old_layout, new_layout).expect("RawVec::shrink_to");
 
         m_ptr = ptr.template cast<T>();
         m_cap = min_capacity;
@@ -97,14 +100,16 @@ template <typename T, alloc::Allocator A = alloc::Global> struct RawVec {
     /// ## Safety
     /// You must ensure that the index is within bounds and constructed before accessing it.
     const T &operator[](usize i) const {
-        return m_ptr[i];
+        std::cout << m_ptr.get()[i] << " " << i << " " << m_cap << std::endl;
+        return m_ptr.get()[i];
     }
     /// Returns a reference to the element at the specified index.
     /// 
     /// ## Safety
     /// You must ensure that the index is within bounds and constructed before accessing it.
     T &operator[](usize i) {
-        return m_ptr[i];
+        std::cout << m_ptr.get()[i] << " " << i << " " << m_cap << std::endl;
+        return m_ptr.get()[i];
     }
 
     /// Inserts a new element at the specified index.
@@ -144,6 +149,10 @@ template <typename T, alloc::Allocator A = alloc::Global> struct RawVec {
     void move_construct(usize from, usize to) {
         new (m_ptr + to) T(::ox::move(m_ptr[from]));
         std::destroy_at<T>(m_ptr + from);
+    }
+
+    Slice<T> slice(usize start, usize len) {
+        return Slice<T>(m_ptr.get() + start, len);
     }
 };
 
